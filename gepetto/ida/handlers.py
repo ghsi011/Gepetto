@@ -316,3 +316,21 @@ class FunctionRenameHandler(idaapi.action_handler_t):
 
     def update(self, ctx):
         return idaapi.AST_ENABLE_ALWAYS
+
+
+# -----------------------------------------------------------------------------
+# Combined rename orchestration
+
+
+class CombinedRenameHandler(idaapi.action_handler_t):
+    """Runs variable rename first, then function rename, leveraging existing callbacks."""
+    def __init__(self):
+        self.varRenameHandler = RenameHandler()
+        self.functionRenameHandler = FunctionRenameHandler()
+        idaapi.action_handler_t.__init__(self)
+
+    def activate(self, ctx):
+        return self.varRenameHandler.activate(ctx) and self.functionRenameHandler.activate(ctx)
+
+    def update(self, ctx):
+        return idaapi.AST_ENABLE_ALWAYS

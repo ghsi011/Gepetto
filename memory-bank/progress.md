@@ -11,6 +11,7 @@
 • Internationalisation implemented; several locales shipped (fr_FR, es_ES, etc.).
 • Added AI-assisted *function* renaming action (Ctrl+Alt+N) to UI
 • Function rename now retries with force flags if initial attempt fails (avoids silent comment-only situations)
+• Refactored combined rename handler to delegate to existing RenameHandler + FunctionRenameHandler (removes duplication)
 
 ## What's Left To Build
 • Automated unit/integration tests (none currently).
