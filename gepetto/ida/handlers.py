@@ -263,3 +263,56 @@ class GeneratePythonCodeHandler(idaapi.action_handler_t):
 
     def update(self, ctx):
         return idaapi.AST_ENABLE_ALWAYS
+
+
+def rename_function_callback(address, response, view):
+    """Callback to set a better function name returned by the model.
+
+    The model is expected to reply with a single identifier (no JSON). Additional text is
+    ignored; only the first token is used as the new name.
+    """
+    new_name = response.strip().split()[0] if response else ""
+    new_name = re.sub(r"[^0-9A-Za-z_]", "_", new_name)  # sanitize
+    if not new_name:
+        print(_("Model did not return a valid function name."))
+        return
+    # Try to apply the new name – first with sanity checks, then force-rename if a duplicate prevents it
+    if idc.set_name(address, new_name, idc.SN_CHECK):
+        print(_("Function 0x{ea:X} renamed to {name}").format(ea=address, name=new_name))
+    else:
+        # Retry allowing IDA to auto-suffix or overwrite
+        force_flags = idc.SN_FORCE | idc.SN_AUTO | idc.SN_NOWARN
+        if idc.set_name(address, new_name, force_flags):
+            final_name = idc.get_func_name(address)
+            print(_("Function 0x{ea:X} renamed to {name} (forced / auto-suffixed)").format(ea=address, name=final_name))
+        else:
+            print(_("Failed to rename function 0x{ea:X} to {name}").format(ea=address, name=new_name))
+    
+    if view:
+        view.refresh_view(True)
+        print("refreshed view")
+    else:
+        print("no view")
+
+
+class FunctionRenameHandler(idaapi.action_handler_t):
+    """Requests a better function name from the model and applies it."""
+
+    def __init__(self):
+        idaapi.action_handler_t.__init__(self)
+
+    def activate(self, ctx):
+        decompiler_output = ida_hexrays.decompile(idaapi.get_screen_ea())
+        if not decompiler_output:
+            return 0
+        v = ida_hexrays.get_widget_vdui(ctx.widget)
+        gepetto.config.model.query_model_async(
+            _("Suggest a concise, descriptive C-style identifier as a better name for the following function."
+              " Return ONLY the new name, without any explanation.\n{code}").format(code=str(decompiler_output)),
+            functools.partial(rename_function_callback, address=idaapi.get_screen_ea(), view=v)
+        )
+        print(_("Request to {model} sent...").format(model=str(gepetto.config.model)))
+        return 1
+
+    def update(self, ctx):
+        return idaapi.AST_ENABLE_ALWAYS
