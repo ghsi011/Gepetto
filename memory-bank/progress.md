@@ -23,4 +23,4 @@
 • Asynchronous calls not cancellable once dispatched.
 
 ---
-*Last updated*: Initial Memory Bank creation 
+*Last updated*: Initial Memory Bank creation, Added support for OpenAI models `o3` and `o4-mini` 

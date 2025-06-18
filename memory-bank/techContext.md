@@ -36,7 +36,7 @@ Gepetto/
 ## Dependencies & External Services
 | Purpose | Library | Notes |
 |---------|---------|-------|
-| OpenAI models | openai | GPT-3.5, GPT-4, GPT-4o |
+| OpenAI models | openai | GPT-3.5, GPT-4, GPT-4o, **o4-mini, o3** |
 | Azure OpenAI | azure-identity | Provides AD token auth |
 | Groq Cloud | groq | Llama-3 series, Mixtral |
 | Together AI | together | Large mixture models |

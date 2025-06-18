@@ -31,6 +31,8 @@ method with the corresponding provider.
   - gpt-3.5-turbo-0125
   - gpt-4-turbo
   - gpt-4o (recommended for beginners)
+  - o4-mini
+  - o3
 - [Azure OpenAI](https://ai.azure.com/)
   - gpt-35-turbo
   - gpt-35-turbo-1106
