@@ -8,7 +8,7 @@ import ida_hexrays
 import ida_kernwin
 
 import gepetto.config
-from gepetto.ida.handlers import ExplainHandler, RenameHandler, SwapModelHandler, GenerateCCodeHandler, GeneratePythonCodeHandler, FunctionRenameHandler, CombinedRenameHandler
+from gepetto.ida.handlers import ExplainHandler, RenameHandler, SwapModelHandler, GenerateCCodeHandler, GeneratePythonCodeHandler, FunctionRenameHandler, CombinedRenameHandler, RecursiveCombinedRenameHandler
 from gepetto.ida.cli import register_cli
 import gepetto.models.model_manager
 
@@ -33,6 +33,8 @@ class GepettoPlugin(idaapi.plugin_t):
     func_rename_menu_path = "Edit/Gepetto/" + _("Rename function")
     combined_rename_action_name = "gepetto:rename_function_and_vars"
     combined_rename_menu_path = "Edit/Gepetto/" + _("Rename function && variables")
+    recursive_combined_action_name = "gepetto:recursive_combined_rename"
+    recursive_combined_menu_path = "Edit/Gepetto/" + _("Recursive rename (function && vars)")
     wanted_name = 'Gepetto'
     wanted_hotkey = ''
     comment = _("Uses {model} to enrich the decompiler's output").format(model=str(gepetto.config.model))
@@ -92,6 +94,17 @@ class GepettoPlugin(idaapi.plugin_t):
         )
         idaapi.register_action(combined_rename_action)
 
+        # Recursive combined rename action
+        recursive_combined_action = idaapi.action_desc_t(
+            self.recursive_combined_action_name,
+            _('Recursive rename (function && vars)'),
+            RecursiveCombinedRenameHandler(),
+            "Ctrl+Alt+Shift+M",
+            _( "Recursively rename function and variables (leaf-first) using {model}").format(model=str(gepetto.config.model)),
+            456
+        )
+        idaapi.register_action(recursive_combined_action)
+
         # Generate Python Code action
         generate_python_code_action = idaapi.action_desc_t(
             self.python_code_action_name,
@@ -124,6 +137,7 @@ class GepettoPlugin(idaapi.plugin_t):
         idaapi.attach_action_to_menu(self.python_code_menu_path, self.python_code_action_name, idaapi.SETMENU_APP)
         idaapi.attach_action_to_menu(self.func_rename_menu_path, self.func_rename_action_name, idaapi.SETMENU_APP)
         idaapi.attach_action_to_menu(self.combined_rename_menu_path, self.combined_rename_action_name, idaapi.SETMENU_APP)
+        idaapi.attach_action_to_menu(self.recursive_combined_menu_path, self.recursive_combined_action_name, idaapi.SETMENU_APP)
 
         self.generate_model_select_menu()
 
@@ -217,4 +231,5 @@ class ContextMenuHooks(idaapi.UI_Hooks):
             idaapi.attach_action_to_popup(form, popup, GepettoPlugin.python_code_action_name, "Gepetto/")
             idaapi.attach_action_to_popup(form, popup, GepettoPlugin.func_rename_action_name, "Gepetto/")
             idaapi.attach_action_to_popup(form, popup, GepettoPlugin.combined_rename_action_name, "Gepetto/")
+            idaapi.attach_action_to_popup(form, popup, GepettoPlugin.recursive_combined_action_name, "Gepetto/")
 

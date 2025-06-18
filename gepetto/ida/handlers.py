@@ -7,6 +7,8 @@ import textwrap
 import idaapi
 import ida_hexrays
 import idc
+import idautils
+import ida_kernwin
 
 import gepetto.config
 from gepetto.models.model_manager import instantiate_model
@@ -331,6 +333,59 @@ class CombinedRenameHandler(idaapi.action_handler_t):
 
     def activate(self, ctx):
         return self.varRenameHandler.activate(ctx) and self.functionRenameHandler.activate(ctx)
+
+    def update(self, ctx):
+        return idaapi.AST_ENABLE_ALWAYS
+
+
+# -----------------------------------------------------------------------------
+# Recursive combined rename (leaf-first)
+# -----------------------------------------------------------------------------
+
+
+def _collect_descendant_functions_leaf_first(start_ea: int, visited: set[int] | None = None, ordered: list[int] | None = None):
+    """Return list of function start EAs in depth-first post-order (leaf first)."""
+    if visited is None:
+        visited = set()
+    if ordered is None:
+        ordered = []
+    if start_ea in visited:
+        return ordered
+    visited.add(start_ea)
+    func = idaapi.get_func(start_ea)
+    if not func:
+        return ordered
+    # iterate over instructions to find call targets
+    for ea in idautils.FuncItems(func.start_ea):
+        for xref in idautils.XrefsFrom(ea, idaapi.XREF_FAR):
+            if xref.type not in (idaapi.fl_CN, idaapi.fl_CF):
+                continue
+            callee = idaapi.get_func(xref.to)
+            if callee:
+                _collect_descendant_functions_leaf_first(callee.start_ea, visited, ordered)
+    ordered.append(func.start_ea)
+    return ordered
+
+
+class RecursiveCombinedRenameHandler(idaapi.action_handler_t):
+    """Action that applies CombinedRenameHandler recursively leaf-first."""
+
+    def __init__(self):
+        self.combinedRenameHandler = CombinedRenameHandler()
+        idaapi.action_handler_t.__init__(self)
+
+    def activate(self, ctx):
+        start_ea = idaapi.get_screen_ea()
+        ordered = _collect_descendant_functions_leaf_first(start_ea)
+        if not ordered:
+            print(_("No functions found to process."))
+            return 0
+        
+        for ea in ordered:
+            ida_kernwin.jumpto(ea)
+            self.combinedRenameHandler.activate(ctx)
+
+        return 1
 
     def update(self, ctx):
         return idaapi.AST_ENABLE_ALWAYS
