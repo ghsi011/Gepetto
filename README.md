@@ -91,7 +91,12 @@ Gepetto also provides a CLI interface you can use to ask questions to the LLM di
 The following hotkeys are available:
 
 - Ask the model to explain the function: `Ctrl` + `Alt` + `G`
-- Request better names for the function's variables: `Ctrl` + `Alt` + `R`
+- Rename the function's variables: `Ctrl` + `Alt` + `R`
+- Rename the function itself: `Ctrl` + `Alt` + `N`
+- Rename function **and** variables in one step: `Ctrl` + `Alt` + `M`
+- Recursive leaf-first rename (function & vars): `Ctrl` + `Alt` + `Shift` + `M`
+- Generate executable C code from the function: `Ctrl` + `Alt` + `C`
+- Generate equivalent Python code from the function: `Ctrl` + `Alt` + `P`
 
 Initial testing shows that asking for better names works better if you ask for an explanation of the function first – I
 assume because the model then uses its own comment to make more accurate suggestions.
