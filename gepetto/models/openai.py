@@ -120,6 +120,7 @@ class GPT(LanguageModel):
         :param additional_model_options: Additional parameters used when creating the model object. Typically, for
         OpenAI, response_format={"type": "json_object"}.
         """
+        
         t = threading.Thread(target=self.query_model, args=[query, cb, stream, additional_model_options])
         t.start()
 

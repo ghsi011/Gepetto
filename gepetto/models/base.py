@@ -6,6 +6,10 @@ class LanguageModel(metaclass=abc.ABCMeta):
     def query_model_async(self, query, cb, stream, additional_model_options) -> None:
         pass
 
+    @abc.abstractmethod
+    def query_model(self, query, cb, stream, additional_model_options) -> None:
+        pass
+
     def __eq__(self, other):
         return self.get_menu_name() == other.get_menu_name()
 

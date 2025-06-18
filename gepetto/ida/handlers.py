@@ -144,7 +144,7 @@ class RenameHandler(idaapi.action_handler_t):
     def activate(self, ctx):
         decompiler_output = ida_hexrays.decompile(idaapi.get_screen_ea())
         v = ida_hexrays.get_widget_vdui(ctx.widget)
-        gepetto.config.model.query_model_async(
+        gepetto.config.model.query_model(
             _("Analyze the following C function:\n{decompiler_output}"
               "\nSuggest better variable names, reply with a JSON array where keys are the original"
               " names and values are the proposed names. Do not explain anything, only print the "
@@ -278,17 +278,20 @@ def rename_function_callback(address, response, view):
     if not new_name:
         print(_("Model did not return a valid function name."))
         return
-    # Try to apply the new name – first with sanity checks, then force-rename if a duplicate prevents it
-    if idc.set_name(address, new_name, idc.SN_CHECK):
-        print(_("Function 0x{ea:X} renamed to {name}").format(ea=address, name=new_name))
-    else:
-        # Retry allowing IDA to auto-suffix or overwrite
-        force_flags = idc.SN_FORCE | idc.SN_AUTO | idc.SN_NOWARN
-        if idc.set_name(address, new_name, force_flags):
-            final_name = idc.get_func_name(address)
-            print(_("Function 0x{ea:X} renamed to {name} (forced / auto-suffixed)").format(ea=address, name=final_name))
-        else:
-            print(_("Failed to rename function 0x{ea:X} to {name}").format(ea=address, name=new_name))
+    # Attempt to apply name; if duplicate, generate deterministic suffixes _1, _2, ...
+    base_name = new_name
+    suffix = 0
+    applied = False
+    flags = idc.SN_CHECK | idc.SN_NOWARN
+    while suffix < 100:  # arbitrary safety cap
+        candidate = base_name if suffix == 0 else f"{base_name}_{suffix}"
+        if idc.set_name(address, candidate, flags):
+            print(_("Function 0x{ea:X} renamed to {name}").format(ea=address, name=candidate))
+            applied = True
+            break
+        suffix += 1
+    if not applied:
+        print(_("Failed to rename function 0x{ea:X} to {name} (even after suffix attempts)").format(ea=address, name=base_name))
     
     if view:
         view.refresh_view(True)
@@ -308,7 +311,7 @@ class FunctionRenameHandler(idaapi.action_handler_t):
         if not decompiler_output:
             return 0
         v = ida_hexrays.get_widget_vdui(ctx.widget)
-        gepetto.config.model.query_model_async(
+        gepetto.config.model.query_model(
             _("Suggest a concise, descriptive C-style identifier as a better name for the following function."
               " Return ONLY the new name, without any explanation.\n{code}").format(code=str(decompiler_output)),
             functools.partial(rename_function_callback, address=idaapi.get_screen_ea(), view=v)
