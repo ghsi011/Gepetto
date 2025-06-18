@@ -102,6 +102,14 @@ def rename_callback(address, view, response):
     """
     names = json.loads(response)
 
+    # get the function name from the response - it should be the first key in the JSON array
+    function_name = next(iter(names.values()))
+    # rename the function
+    try_rename_with_suffixes(address, function_name, idc.SN_CHECK | idc.SN_NOWARN)
+
+    #remove the function name from the JSON array
+    names.pop(next(iter(names.keys())))
+
     # The rename function needs the start address of the function
     function_addr = idaapi.get_func(address).start_ea
 
@@ -132,6 +140,22 @@ def rename_callback(address, view, response):
 
 # -----------------------------------------------------------------------------
 
+# Attempt to apply name; if duplicate, generate deterministic suffixes _1, _2, ...
+def try_rename_with_suffixes(address, base_name, flags):
+    suffix = 0
+    applied = False
+    while suffix < 100:  # arbitrary safety cap
+        candidate = base_name if suffix == 0 else f"{base_name}_{suffix}"
+        if idc.set_name(address, candidate, flags):
+            print(_("Function 0x{ea:X} renamed to {name}").format(ea=address, name=candidate))
+            applied = True
+            break
+        suffix += 1
+    if not applied:
+        print(_("Failed to rename function 0x{ea:X} to {name} (even after suffix attempts)").format(ea=address, name=base_name))
+    return applied
+
+
 class RenameHandler(idaapi.action_handler_t):
     """
     This handler requests new variable names from the model and updates the
@@ -146,8 +170,8 @@ class RenameHandler(idaapi.action_handler_t):
         v = ida_hexrays.get_widget_vdui(ctx.widget)
         gepetto.config.model.query_model(
             _("Analyze the following C function:\n{decompiler_output}"
-              "\nSuggest better variable names, reply with a JSON array where keys are the original"
-              " names and values are the proposed names. Do not explain anything, only print the "
+              "\nSuggest better variable names and a function name, reply with a JSON array where keys are the original"
+              " names and values are the proposed names. the function name should always be first in the array. Do not explain anything, only print the "
               "JSON dictionary.").format(decompiler_output=str(decompiler_output)),
             functools.partial(rename_callback, address=idaapi.get_screen_ea(), view=v),
             additional_model_options={"response_format": {"type": "json_object"}})
@@ -267,6 +291,9 @@ class GeneratePythonCodeHandler(idaapi.action_handler_t):
         return idaapi.AST_ENABLE_ALWAYS
 
 
+
+
+
 def rename_function_callback(address, response, view):
     """Callback to set a better function name returned by the model.
 
@@ -278,20 +305,11 @@ def rename_function_callback(address, response, view):
     if not new_name:
         print(_("Model did not return a valid function name."))
         return
-    # Attempt to apply name; if duplicate, generate deterministic suffixes _1, _2, ...
+    
+
     base_name = new_name
-    suffix = 0
-    applied = False
     flags = idc.SN_CHECK | idc.SN_NOWARN
-    while suffix < 100:  # arbitrary safety cap
-        candidate = base_name if suffix == 0 else f"{base_name}_{suffix}"
-        if idc.set_name(address, candidate, flags):
-            print(_("Function 0x{ea:X} renamed to {name}").format(ea=address, name=candidate))
-            applied = True
-            break
-        suffix += 1
-    if not applied:
-        print(_("Failed to rename function 0x{ea:X} to {name} (even after suffix attempts)").format(ea=address, name=base_name))
+    try_rename_with_suffixes(address, base_name, flags)
     
     if view:
         view.refresh_view(True)
@@ -331,11 +349,10 @@ class CombinedRenameHandler(idaapi.action_handler_t):
     """Runs variable rename first, then function rename, leveraging existing callbacks."""
     def __init__(self):
         self.varRenameHandler = RenameHandler()
-        self.functionRenameHandler = FunctionRenameHandler()
         idaapi.action_handler_t.__init__(self)
 
     def activate(self, ctx):
-        return self.varRenameHandler.activate(ctx) and self.functionRenameHandler.activate(ctx)
+        return self.varRenameHandler.activate(ctx)
 
     def update(self, ctx):
         return idaapi.AST_ENABLE_ALWAYS
@@ -374,7 +391,7 @@ class RecursiveCombinedRenameHandler(idaapi.action_handler_t):
     """Action that applies CombinedRenameHandler recursively leaf-first."""
 
     def __init__(self):
-        self.combinedRenameHandler = CombinedRenameHandler()
+        self.RenameHandler = RenameHandler()
         idaapi.action_handler_t.__init__(self)
 
     def activate(self, ctx):
@@ -386,7 +403,7 @@ class RecursiveCombinedRenameHandler(idaapi.action_handler_t):
         
         for ea in ordered:
             ida_kernwin.jumpto(ea)
-            self.combinedRenameHandler.activate(ctx)
+            self.RenameHandler.activate(ctx)
 
         return 1
 
