@@ -16,6 +16,7 @@
 • Implemented try_rename_with_suffixes helper – applies deterministic _<n> suffix when duplicate names exist.
 • RenameHandler now expects function name first in JSON, renames function and variables in one call (synchronous query).
 • Recursive combined rename updated to reuse RenameHandler per function.
+• Recursive traversal now considers any referenced function (callbacks etc.), not just direct calls
 
 ## What's Left To Build
 • Automated unit/integration tests (none currently).

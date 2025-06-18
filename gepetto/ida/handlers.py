@@ -375,13 +375,13 @@ def _collect_descendant_functions_leaf_first(start_ea: int, visited: set[int] | 
     func = idaapi.get_func(start_ea)
     if not func:
         return ordered
-    # iterate over instructions to find call targets
+    # Iterate over instructions to find any referenced function – not only CALLs but also
+    # addresses taken (e.g., callbacks passed as parameters).
     for ea in idautils.FuncItems(func.start_ea):
-        for xref in idautils.XrefsFrom(ea, idaapi.XREF_FAR):
-            if xref.type not in (idaapi.fl_CN, idaapi.fl_CF):
-                continue
+        # Iterate over *all* outgoing xrefs (code or data)
+        for xref in idautils.XrefsFrom(ea, 0):
             callee = idaapi.get_func(xref.to)
-            if callee:
+            if callee and callee.start_ea not in visited:
                 _collect_descendant_functions_leaf_first(callee.start_ea, visited, ordered)
     ordered.append(func.start_ea)
     return ordered
