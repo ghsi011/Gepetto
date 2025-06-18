@@ -13,6 +13,9 @@
 • Function rename now retries with force flags if initial attempt fails (avoids silent comment-only situations)
 • Refactored combined rename handler to delegate to existing RenameHandler + FunctionRenameHandler (removes duplication)
 • Added recursive combined rename action (Ctrl+Alt+Shift+M) – leaf-first traversal through call graph
+• Implemented try_rename_with_suffixes helper – applies deterministic _<n> suffix when duplicate names exist.
+• RenameHandler now expects function name first in JSON, renames function and variables in one call (synchronous query).
+• Recursive combined rename updated to reuse RenameHandler per function.
 
 ## What's Left To Build
 • Automated unit/integration tests (none currently).
